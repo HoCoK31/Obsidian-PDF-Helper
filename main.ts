@@ -19,7 +19,9 @@ export default class PdfHelper extends Plugin {
 				const params = match[0].split(":");
 
 				let url = params[2];
-				url = context.frontmatter[url] ?? url;
+				if (context.frontmatter != undefined)
+					url = context.frontmatter[url] ?? url;
+
 				if (url.startsWith("[["))
 					url = url?.substring(2, url.length - 2);
 				if (!url.match(/.pdf$/))
