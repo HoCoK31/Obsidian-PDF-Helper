@@ -1,6 +1,6 @@
 {
 	"id": "pdf-helper",
-	"name": "Pdf Helper",
+	"name": "PDF Helper",
 	"version": "0.0.1",
 	"minAppVersion": "0.15.0",
 	"description": "A plugin for various little things related to PDF such as thumbnails, page count, etc.",
