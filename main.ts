@@ -1,7 +1,5 @@
 import { Plugin } from "obsidian";
-import { getAPI } from "obsidian-dataview";
 
-const dataviewAPI = getAPI();
 const mainPattern = new RegExp(/:pdf-[^:]*:[^:]*:(?:[0-9]*:)?$/);
 
 export default class PdfHelper extends Plugin {
