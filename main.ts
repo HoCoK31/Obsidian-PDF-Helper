@@ -1,17 +1,28 @@
 import { Plugin } from "obsidian";
+import { getAPI } from "obsidian-dataview";
 
-const mainPattern = new RegExp(/:pdf-[^:]*:[^:]*:(?:[0-9]*:)?$/);
+const majorPattern = new RegExp(/:pdf-[^:]*:[^:]*:(?:[0-9]*:)?$/);
+const minorPattern = new RegExp(/\((?:[^)]*)[^(]*\)/);
+
 
 export default class PdfHelper extends Plugin {
 	async onload() {
+		const dataviewPromise = new Promise(resolve => {
+			this.app.metadataCache.on("dataview:index-ready", () => {
+				resolve("Ok");
+			});
+		});
+
 		this.registerMarkdownPostProcessor(async (element, context) => {
-			const pElements = element.querySelectorAll("p");
+			const pElements = element.querySelectorAll("p, td, th");
 
 			for (let index = 0; index < pElements.length; index++) {
-				const pElement = pElements.item(index);
-				const text = pElement.innerText.trim();
 
-				const match = mainPattern.exec(text);
+
+				const pElement = pElements.item(index);
+				const text = pElement.innerHTML.trim();
+
+				let match = majorPattern.exec(text);
 
 				if (match?.length != 1)
 					continue;
@@ -24,9 +35,24 @@ export default class PdfHelper extends Plugin {
 
 				if (url.startsWith("[["))
 					url = url?.substring(2, url.length - 2);
+				else {
+					if (!url.startsWith("[")) {
+						await dataviewPromise;
+						url = getAPI(this.app).page(context.sourcePath)[url];
+					}
+
+					match = minorPattern.exec(url);
+					if (match?.length != 1)
+						continue;
+					url = match[0];
+					url = url?.substring(1, url.length - 1);
+				}
+				url = url.replaceAll("%20", " ");
+
 				if (!url.match(/.pdf$/))
 					continue;
 				url = this.app.metadataCache.getFirstLinkpathDest(url, "")?.path || "";
+
 				if (!url)
 					continue;
 
@@ -99,6 +125,6 @@ export class pdfPageCount extends MarkdownRenderChild {
 	}
 
 	async onload() {
-		this.containerEl.innerText = this.containerEl.innerText.replace(mainPattern, this.pageNum.toString());
+		this.containerEl.innerText = this.containerEl.innerText.replace(majorPattern, this.pageNum.toString());
 	}
 }

@@ -20,5 +20,8 @@
 		"obsidian": "latest",
 		"tslib": "2.6.2",
 		"typescript": "5.2.2"
+	},
+	"dependencies": {
+		"obsidian-dataview": "^0.5.61"
 	}
 }
