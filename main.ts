@@ -2,12 +2,13 @@ import { Plugin } from "obsidian";
 import { getAPI } from "obsidian-dataview";
 
 const majorPattern = new RegExp(/:pdf-[^:]*:[^:]*:(?:[0-9]*:)?$/);
-const minorPattern = new RegExp(/\((?:[^)]*)[^(]*\)/);
+const minorPattern = new RegExp(/(\[[^]]*[^[]*\])(\([^)]*[^(]*\))/);
 
 
 export default class PdfHelper extends Plugin {
 	async onload() {
 		const dataviewPromise = new Promise(resolve => {
+			// @ts-ignore
 			this.app.metadataCache.on("dataview:index-ready", () => {
 				resolve("Ok");
 			});
@@ -15,13 +16,10 @@ export default class PdfHelper extends Plugin {
 
 		this.registerMarkdownPostProcessor(async (element, context) => {
 			const pElements = element.querySelectorAll("p, td, th");
-
 			for (let index = 0; index < pElements.length; index++) {
-
 
 				const pElement = pElements.item(index);
 				const text = pElement.innerHTML.trim();
-
 				let match = majorPattern.exec(text);
 
 				if (match?.length != 1)
@@ -40,15 +38,13 @@ export default class PdfHelper extends Plugin {
 						await dataviewPromise;
 						url = getAPI(this.app).page(context.sourcePath)[url];
 					}
-
 					match = minorPattern.exec(url);
-					if (match?.length != 1)
+					if (match?.length != 3)
 						continue;
-					url = match[0];
+					url = match[2];
 					url = url?.substring(1, url.length - 1);
 				}
 				url = url.replaceAll("%20", " ");
-
 				if (!url.match(/.pdf$/))
 					continue;
 				url = this.app.metadataCache.getFirstLinkpathDest(url, "")?.path || "";
@@ -71,10 +67,10 @@ export default class PdfHelper extends Plugin {
 
 						const page = await pdf.getPage(pageNumber);
 
-						context.addChild(new pdfThumbnail(pElement, page));
+						context.addChild(new pdfThumbnail(pElement as HTMLElement, page));
 						break;
 					case "pdf-page-count":
-						context.addChild(new pdfPageCount(pElement, pdf.numPages));
+						context.addChild(new pdfPageCount(pElement as HTMLElement, pdf.numPages));
 						break;
 					default:
 						break;
