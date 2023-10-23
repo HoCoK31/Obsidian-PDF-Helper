@@ -93,17 +93,16 @@ export class pdfThumbnail extends MarkdownRenderChild {
 
 	async onload() {
 		const canvas = document.createElement("canvas");
-		canvas.style.width = "100%";
-		canvas.style.margin = "0em";
-
 		const context = canvas.getContext("2d");
-
 		const baseViewportWidth = this.page.getViewport({ scale: 1 }).width;
-		const baseScale = canvas.clientWidth ? canvas.clientWidth / baseViewportWidth : 1;
-		const viewport = this.page.getViewport({ scale: baseScale });
 
-		canvas.height = viewport.height;
-		canvas.width = viewport.width;
+		const scale = this.containerEl.clientWidth / baseViewportWidth;
+		const viewport = this.page.getViewport({ scale: scale * window.devicePixelRatio || 1 });
+
+		canvas.width = Math.ceil(viewport.width);
+		canvas.height = Math.ceil(viewport.height);
+		canvas.style.width = Math.ceil(viewport.width) / (window.devicePixelRatio || 1) + "px";
+		canvas.style.height = Math.ceil(viewport.height) / (window.devicePixelRatio || 1) + "px";
 
 		const renderContext = { canvasContext: context, viewport };
 		this.page.render(renderContext);
