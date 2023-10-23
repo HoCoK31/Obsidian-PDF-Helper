@@ -1,7 +1,7 @@
 import { Plugin } from "obsidian";
 import { getAPI } from "obsidian-dataview";
 
-const majorPattern = new RegExp(/:pdf-[^:]*:[^:]*:(?:[0-9]*:)?$/);
+const majorPattern = new RegExp(/:(pdf-[^:]+):([^:]+):(?:([0-9]+):(?:([0-9]+|[0-9]+x[0-9]+):)?)?/);
 const minorPattern = new RegExp(/(\[[^]]*[^[]*\])(\([^)]*[^(]*\))/);
 
 
@@ -20,14 +20,13 @@ export default class PdfHelper extends Plugin {
 
 				const pElement = pElements.item(index);
 				const text = pElement.innerHTML.trim();
-				let match = majorPattern.exec(text);
+				const majorMatch = majorPattern.exec(text);
 
-				if (match?.length != 1)
+				if (!majorMatch?.length)
 					continue;
+				console.log(majorMatch);
 
-				const params = match[0].split(":");
-
-				let url = params[2];
+				let url = majorMatch[2];
 				if (context.frontmatter != undefined)
 					url = context.frontmatter[url] ?? url;
 
@@ -38,10 +37,10 @@ export default class PdfHelper extends Plugin {
 						await dataviewPromise;
 						url = getAPI(this.app).page(context.sourcePath)[url];
 					}
-					match = minorPattern.exec(url);
-					if (match?.length != 3)
+					const minorMatch = minorPattern.exec(url);
+					if (minorMatch?.length != 3)
 						continue;
-					url = match[2];
+					url = minorMatch[2];
 					url = url?.substring(1, url.length - 1);
 				}
 				url = url.replaceAll("%20", " ");
@@ -59,9 +58,9 @@ export default class PdfHelper extends Plugin {
 				const buffer = new Uint8Array(arrayBuffer);
 				const pdf = await pdfjs.getDocument(buffer).promise;
 
-				switch (params[1]) {
+				switch (majorMatch[1]) {
 					case "pdf-thumbnail":
-						let pageNumber: number = parseInt(params[3]) || 1;
+						let pageNumber: number = parseInt(majorMatch[3]) || 1;
 						if (pageNumber > pdf.numPages)
 							pageNumber = 1;
 
