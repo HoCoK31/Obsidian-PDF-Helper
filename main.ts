@@ -85,6 +85,7 @@ import { MarkdownRenderChild } from "obsidian";
 
 export class pdfThumbnail extends MarkdownRenderChild {
 	page: any;
+	renderTask: any;
 
 	constructor(containerEl: HTMLElement, page: any) {
 		super(containerEl);
@@ -92,22 +93,35 @@ export class pdfThumbnail extends MarkdownRenderChild {
 	}
 
 	async onload() {
-		const canvas = document.createElement("canvas");
-		const context = canvas.getContext("2d");
-		const baseViewportWidth = this.page.getViewport({ scale: 1 }).width;
+		const paragraph = document.createElement("p");
+		this.containerEl.replaceWith(paragraph);
+		let mainCanvas = document.createElement("canvas");
 
-		const scale = this.containerEl.clientWidth / baseViewportWidth;
-		const viewport = this.page.getViewport({ scale: scale * window.devicePixelRatio || 1 });
+		resizeCanvas.call(this);
+		async function resizeCanvas() {
+			const canvas = document.createElement("canvas");
+			const context = canvas.getContext("2d");
+			const baseViewportWidth = this.page.getViewport({ scale: 1 }).width;
 
-		canvas.width = Math.ceil(viewport.width);
-		canvas.height = Math.ceil(viewport.height);
-		canvas.style.width = Math.ceil(viewport.width) / (window.devicePixelRatio || 1) + "px";
-		canvas.style.height = Math.ceil(viewport.height) / (window.devicePixelRatio || 1) + "px";
+			const scale = paragraph.clientWidth / baseViewportWidth;
+			const viewport = this.page.getViewport({ scale: scale * window.devicePixelRatio || 1 });
 
-		const renderContext = { canvasContext: context, viewport };
-		this.page.render(renderContext);
+			canvas.width = Math.ceil(viewport.width);
+			canvas.height = Math.ceil(viewport.height);
+			canvas.style.width = Math.ceil(viewport.width) / (window.devicePixelRatio || 1) + "px";
+			canvas.style.height = Math.ceil(viewport.height) / (window.devicePixelRatio || 1) + "px";
 
-		this.containerEl.replaceWith(canvas);
+			const renderContext = { canvasContext: context, viewport: viewport };
+			this.renderTask = this.page.render(renderContext);
+			await this.renderTask.promise;
+
+			mainCanvas.replaceWith(canvas);
+			mainCanvas = canvas;
+		}
+
+		paragraph.appendChild(mainCanvas);
+
+		new ResizeObserver(_ => { resizeCanvas.call(this) }).observe(paragraph);
 	}
 }
 
