@@ -85,6 +85,7 @@ export class pdfThumbnail extends MarkdownRenderChild {
 	page: any;
 	renderTask: any;
 	fixedWidth: number | undefined;
+	timeoutId: number | undefined;
 
 	constructor(containerEl: HTMLElement, page: any, size?: number) {
 		super(containerEl);
@@ -98,26 +99,36 @@ export class pdfThumbnail extends MarkdownRenderChild {
 		let mainCanvas = document.createElement("canvas");
 
 		async function resizeCanvas() {
+			if (!paragraph.clientWidth)
+				return;
+
 			const canvas = document.createElement("canvas");
 			const context = canvas.getContext("2d");
 			const baseViewportWidth = this.page.getViewport({ scale: 1 }).width;
 
-			if (!paragraph.clientWidth)
-				return;
 			const scale = (this.fixedWidth || paragraph.clientWidth) / baseViewportWidth;
 			const viewport = this.page.getViewport({ scale: scale * window.devicePixelRatio || 1 });
+
+			mainCanvas.style.width = Math.floor(viewport.width) / (window.devicePixelRatio || 1) + "px";
+			mainCanvas.style.height = Math.floor(viewport.height) / (window.devicePixelRatio || 1) + "px";
 
 			canvas.width = Math.floor(viewport.width);
 			canvas.height = Math.floor(viewport.height);
 			canvas.style.width = Math.floor(viewport.width) / (window.devicePixelRatio || 1) + "px";
 			canvas.style.height = Math.floor(viewport.height) / (window.devicePixelRatio || 1) + "px";
 
-			const renderContext = { canvasContext: context, viewport: viewport };
-			this.renderTask = this.page.render(renderContext);
-			await this.renderTask.promise;
+			clearTimeout(this.timeoutId);
 
-			mainCanvas.replaceWith(canvas);
-			mainCanvas = canvas;
+			this.timeoutId = setTimeout(async () => {
+				const renderContext = { canvasContext: context, viewport: viewport };
+
+				this.renderTask = this.page.render(renderContext);
+				await this.renderTask.promise;
+
+				mainCanvas.replaceWith(canvas);
+				mainCanvas = canvas;
+			}, this.timeoutId === undefined ? 0 : 100)
+
 		}
 
 		paragraph.appendChild(mainCanvas);
