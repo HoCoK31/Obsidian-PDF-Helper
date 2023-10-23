@@ -1,7 +1,7 @@
 import { Plugin } from "obsidian";
 import { getAPI } from "obsidian-dataview";
 
-const majorPattern = new RegExp(/:(pdf-[^:]+):([^:]+):(?:([0-9]+):(?:([0-9]+|[0-9]+x[0-9]+):)?)?/);
+const majorPattern = new RegExp(/:(pdf-[^:]+):([^:]+):(?:([0-9]*):(?:([0-9]+):)?)?/);
 const minorPattern = new RegExp(/(\[[^]]*[^[]*\])(\([^)]*[^(]*\))/);
 
 
@@ -24,7 +24,6 @@ export default class PdfHelper extends Plugin {
 
 				if (!majorMatch?.length)
 					continue;
-				console.log(majorMatch);
 
 				let url = majorMatch[2];
 				if (context.frontmatter != undefined)
@@ -66,7 +65,7 @@ export default class PdfHelper extends Plugin {
 
 						const page = await pdf.getPage(pageNumber);
 
-						context.addChild(new pdfThumbnail(pElement as HTMLElement, page));
+						context.addChild(new pdfThumbnail(pElement as HTMLElement, page, parseInt(majorMatch[4])));
 						break;
 					case "pdf-page-count":
 						context.addChild(new pdfPageCount(pElement as HTMLElement, pdf.numPages));
@@ -85,10 +84,12 @@ import { MarkdownRenderChild } from "obsidian";
 export class pdfThumbnail extends MarkdownRenderChild {
 	page: any;
 	renderTask: any;
+	fixedWidth: number | undefined;
 
-	constructor(containerEl: HTMLElement, page: any) {
+	constructor(containerEl: HTMLElement, page: any, size?: number) {
 		super(containerEl);
 		this.page = page;
+		this.fixedWidth = size;
 	}
 
 	async onload() {
@@ -103,7 +104,7 @@ export class pdfThumbnail extends MarkdownRenderChild {
 
 			if (!paragraph.clientWidth)
 				return;
-			const scale = paragraph.clientWidth / baseViewportWidth;
+			const scale = (this.fixedWidth || paragraph.clientWidth) / baseViewportWidth;
 			const viewport = this.page.getViewport({ scale: scale * window.devicePixelRatio || 1 });
 
 			canvas.width = Math.floor(viewport.width);
@@ -121,7 +122,10 @@ export class pdfThumbnail extends MarkdownRenderChild {
 
 		paragraph.appendChild(mainCanvas);
 
-		new ResizeObserver(_ => { resizeCanvas.call(this) }).observe(paragraph);
+		if (this.fixedWidth)
+			resizeCanvas.call(this);
+		else
+			new ResizeObserver(_ => { resizeCanvas.call(this) }).observe(paragraph);
 	}
 }
 
