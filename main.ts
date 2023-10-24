@@ -15,11 +15,13 @@ export default class PdfHelper extends Plugin {
 		});
 
 		this.registerMarkdownPostProcessor(async (element, context) => {
-			const pElements = element.querySelectorAll("p, td, th");
+			const pElements = element.querySelectorAll("p, td, th, span");
 			for (let index = 0; index < pElements.length; index++) {
 
 				const pElement = pElements.item(index);
-				const text = pElement.innerHTML.trim();
+				const text = pElement.textContent;
+				if (!text)
+					continue;
 				const majorMatch = majorPattern.exec(text);
 
 				if (!majorMatch?.length)
@@ -75,7 +77,7 @@ export default class PdfHelper extends Plugin {
 				}
 
 			}
-		});
+		}, 10000);
 	}
 }
 
@@ -94,24 +96,33 @@ export class pdfThumbnail extends MarkdownRenderChild {
 	}
 
 	async onload() {
-		const paragraph = document.createElement("p");
-		this.containerEl.replaceWith(paragraph);
+		const div = document.createElement("div");
+
 		let mainCanvas = document.createElement("canvas");
+		div.appendChild(mainCanvas);
+		this.containerEl.replaceWith(div);
+
+		resizeCanvas.call(this);
+		let resizeObserver = new ResizeObserver(_ => { resizeCanvas.call(this) });
+		if (!this.fixedWidth)
+			resizeObserver.observe(div);
 
 		async function resizeCanvas() {
-			if (!paragraph.clientWidth)
+			if (!div?.clientWidth) {
 				return;
+			}
 
 			const canvas = document.createElement("canvas");
 			const context = canvas.getContext("2d");
 			const baseViewportWidth = this.page.getViewport({ scale: 1 }).width;
 
-			const scale = (this.fixedWidth || paragraph.clientWidth) / baseViewportWidth;
+			mainCanvas.style.width = "100%";
+
+			const scale = (this.fixedWidth || mainCanvas.clientWidth) / baseViewportWidth;
 			const viewport = this.page.getViewport({ scale: scale * window.devicePixelRatio || 1 });
 
 			mainCanvas.style.width = Math.floor(viewport.width) / (window.devicePixelRatio || 1) + "px";
 			mainCanvas.style.height = Math.floor(viewport.height) / (window.devicePixelRatio || 1) + "px";
-			paragraph.style.height = mainCanvas.style.height;
 
 			canvas.width = Math.floor(viewport.width);
 			canvas.height = Math.floor(viewport.height);
@@ -131,13 +142,6 @@ export class pdfThumbnail extends MarkdownRenderChild {
 			}, this.timeoutId === undefined ? 0 : 100)
 
 		}
-
-		paragraph.appendChild(mainCanvas);
-
-		if (this.fixedWidth)
-			resizeCanvas.call(this);
-		else
-			new ResizeObserver(_ => { resizeCanvas.call(this) }).observe(paragraph);
 	}
 }
 
