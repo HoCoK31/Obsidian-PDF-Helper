@@ -111,6 +111,7 @@ export class pdfThumbnail extends MarkdownRenderChild {
 
 			mainCanvas.style.width = Math.floor(viewport.width) / (window.devicePixelRatio || 1) + "px";
 			mainCanvas.style.height = Math.floor(viewport.height) / (window.devicePixelRatio || 1) + "px";
+			paragraph.style.height = mainCanvas.style.height;
 
 			canvas.width = Math.floor(viewport.width);
 			canvas.height = Math.floor(viewport.height);
