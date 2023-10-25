@@ -1,9 +1,10 @@
-import { Plugin } from "obsidian";
+import { MarkdownPostProcessorContext, Plugin } from "obsidian";
 import { getAPI } from "obsidian-dataview";
 
 const majorPattern = new RegExp(/:(pdf-[^:]+):([^:]+):(?:([0-9]*):(?:([0-9]+):)?)?/);
-const minorPattern = new RegExp(/(\[[^]]*[^[]*\])(\([^)]*[^(]*\))/);
+const minorPattern = new RegExp(/\[([^]]*[^[]*)\]\(([^)]*[^(]*)\)/);
 
+const pdfMap = new Map<string, { file: any, occurrences: number }>;
 
 export default class PdfHelper extends Plugin {
 	async onload() {
@@ -15,70 +16,73 @@ export default class PdfHelper extends Plugin {
 		});
 
 		this.registerMarkdownPostProcessor(async (element, context) => {
-			const pElements = element.querySelectorAll("p, td, th, span");
-			for (let index = 0; index < pElements.length; index++) {
-
-				const pElement = pElements.item(index);
-				const text = pElement.textContent;
-				if (!text)
-					continue;
-				const majorMatch = majorPattern.exec(text);
-
-				if (!majorMatch?.length)
-					continue;
-
-				let url = majorMatch[2];
-				if (context.frontmatter != undefined)
-					url = context.frontmatter[url] ?? url;
-
-				if (url.startsWith("[["))
-					url = url?.substring(2, url.length - 2);
-				else {
-					if (!url.startsWith("[")) {
-						await dataviewPromise;
-						url = getAPI(this.app).page(context.sourcePath)[url];
-					}
-					const minorMatch = minorPattern.exec(url);
-					if (minorMatch?.length != 3)
-						continue;
-					url = minorMatch[2];
-					url = url?.substring(1, url.length - 1);
-				}
-				url = url.replaceAll("%20", " ");
-				if (!url.match(/.pdf$/))
-					continue;
-				url = this.app.metadataCache.getFirstLinkpathDest(url, "")?.path || "";
-
-				if (!url)
-					continue;
-
-				const obsidian = require("obsidian");
-				const pdfjs = await (0, obsidian.loadPdfJs)();
-
-				const arrayBuffer = await this.app.vault.adapter.readBinary(url);
-				const buffer = new Uint8Array(arrayBuffer);
-				const pdf = await pdfjs.getDocument(buffer).promise;
-
-				switch (majorMatch[1]) {
-					case "pdf-thumbnail":
-						let pageNumber: number = parseInt(majorMatch[3]) || 1;
-						if (pageNumber > pdf.numPages)
-							pageNumber = 1;
-
-						const page = await pdf.getPage(pageNumber);
-
-						context.addChild(new pdfThumbnail(pElement as HTMLElement, page, parseInt(majorMatch[4])));
-						break;
-					case "pdf-page-count":
-						context.addChild(new pdfPageCount(pElement as HTMLElement, pdf.numPages));
-						break;
-					default:
-						break;
-				}
-
-			}
+			Array.from(element.querySelectorAll("p, td, th, span")).forEach(async element => {
+				this.processElement(element, context);
+			});
 		}, 10000);
 	}
+
+	async processElement(element: Element, context: MarkdownPostProcessorContext) {
+		const text = element.textContent;
+		if (!text)
+			return;
+		const majorMatch = majorPattern.exec(text);
+
+		if (!majorMatch?.length)
+			return;
+
+		let url = majorMatch[2];
+
+		Array.from(element.getElementsByTagName("a")).forEach(a => {
+			if (a.textContent == majorMatch[2])
+				url = a.getAttribute("data-link-path") || url;
+		});
+		if (!url.match(/.pdf$/)) {
+			//await dataviewPromise;
+			url = getAPI(this.app).page(context.sourcePath)[url] || url;
+			const minorMatch = minorPattern.exec(url);
+			if (minorMatch?.length == 3)
+				url = minorMatch[2].replaceAll("%20", " ");
+		}
+		if (!url.match(/.pdf$/))
+			url = url.concat(".pdf");
+		url = this.app.metadataCache.getFirstLinkpathDest(url, "")?.path || "";
+		if (!url)
+			return;
+
+		const obsidian = require("obsidian");
+		const pdfjs = await (0, obsidian.loadPdfJs)();
+
+		const arrayBuffer = await this.app.vault.adapter.readBinary(url);
+		const buffer = new Uint8Array(arrayBuffer);
+		let pdf: any;
+		if (pdfMap.has(url)) {
+			pdf = await pdfMap.get(url)?.file;
+			console.log("exist")
+		}
+		else {
+			pdfMap.set(url, { file: pdfjs.getDocument(buffer).promise, occurrences: 0 });
+			pdf = await pdfMap.get(url)?.file;
+			console.log("add")
+		}
+
+		switch (majorMatch[1]) {
+			case "pdf-thumbnail":
+				let pageNumber: number = parseInt(majorMatch[3]) || 1;
+				if (pageNumber > pdf.numPages)
+					pageNumber = 1;
+
+				const page = await pdf.getPage(pageNumber);
+
+				context.addChild(new pdfThumbnail(element as HTMLElement, url, page, parseInt(majorMatch[4])));
+				break;
+			case "pdf-page-count":
+				context.addChild(new pdfPageCount(element as HTMLElement, url, pdf.numPages));
+				break;
+			default:
+				break;
+		}
+	};
 }
 
 import { MarkdownRenderChild } from "obsidian";
@@ -88,19 +92,27 @@ export class pdfThumbnail extends MarkdownRenderChild {
 	renderTask: any;
 	fixedWidth: number | undefined;
 	timeoutId: number | undefined;
+	pdfUrl: string;
 
-	constructor(containerEl: HTMLElement, page: any, size?: number) {
+	constructor(containerEl: HTMLElement, pdfUrl: string, page: any, size?: number) {
 		super(containerEl);
 		this.page = page;
 		this.fixedWidth = size;
+		this.pdfUrl = pdfUrl;
 	}
 
 	async onload() {
+		console.log("load")
+		const pdf = pdfMap.get(this.pdfUrl);
+		if (pdf)
+			pdfMap.set(this.pdfUrl, { file: pdf.file, occurrences: ++pdf.occurrences });
+
 		const div = document.createElement("div");
 
 		let mainCanvas = document.createElement("canvas");
 		div.appendChild(mainCanvas);
-		this.containerEl.replaceWith(div);
+		this.containerEl.after(div);
+		this.containerEl.hide();
 
 		resizeCanvas.call(this);
 		let resizeObserver = new ResizeObserver(_ => { resizeCanvas.call(this) });
@@ -108,9 +120,9 @@ export class pdfThumbnail extends MarkdownRenderChild {
 			resizeObserver.observe(div);
 
 		async function resizeCanvas() {
-			if (!div?.clientWidth) {
-				return;
-			}
+			// if (!div?.clientWidth) {
+			// 	return;
+			// }
 
 			const canvas = document.createElement("canvas");
 			const context = canvas.getContext("2d");
@@ -140,15 +152,30 @@ export class pdfThumbnail extends MarkdownRenderChild {
 				mainCanvas.replaceWith(canvas);
 				mainCanvas = canvas;
 			}, this.timeoutId === undefined ? 0 : 100)
-
 		}
+	}
+
+	async onunload() {
+		console.log("unload")
+		this.page.cleanup();
+		const pdf = pdfMap.get(this.pdfUrl);
+		if (pdf)
+			pdfMap.set(this.pdfUrl, { file: pdf.file, occurrences: --pdf.occurrences });
+		if (pdf?.occurrences == 0) {
+			console.log("destroy ", this.pdfUrl);
+			pdf.file.then(function (pdf: any) {
+				pdf.destroy();
+			});
+			pdfMap.delete(this.pdfUrl);
+		}
+		console.log(pdf?.occurrences);
 	}
 }
 
 export class pdfPageCount extends MarkdownRenderChild {
 	pageNum: number;
 
-	constructor(containerEl: HTMLElement, pageNum: number) {
+	constructor(containerEl: HTMLElement, pdfUrl: string, pageNum: number) {
 		super(containerEl);
 		this.pageNum = pageNum;
 	}
