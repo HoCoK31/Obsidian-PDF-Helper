@@ -15,11 +15,14 @@ export default class PdfHelper extends Plugin {
 			});
 		});
 
-		this.registerMarkdownPostProcessor(async (element, context) => {
+		this.registerMarkdownPostProcessor((element, context) => {
 			Array.from(element.querySelectorAll("p, td, th, span")).forEach(async element => {
 				this.processElement(element, context);
 			});
-		}, 10000);
+			//hack for dataview (idk, some versions before it works without it)
+			if (element.tagName == "SPAN")
+				this.processElement(element, context);
+		});
 	}
 
 	async processElement(element: Element, context: MarkdownPostProcessorContext) {
@@ -120,9 +123,9 @@ export class pdfThumbnail extends MarkdownRenderChild {
 			resizeObserver.observe(div);
 
 		async function resizeCanvas() {
-			// if (!div?.clientWidth) {
-			// 	return;
-			// }
+			if (!div?.clientWidth && !this.fixedWidth) {
+				return;
+			}
 
 			const canvas = document.createElement("canvas");
 			const context = canvas.getContext("2d");
