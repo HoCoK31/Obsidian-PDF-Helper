@@ -77,7 +77,7 @@ export default class PdfHelper extends Plugin {
 					context.addChild(new pdfThumbnail(element as HTMLElement, majorMatch[0], url, page, parseInt(majorMatch[4]), majorMatch[5]));
 					break;
 				case "pdf-page-count":
-					context.addChild(new pdfPageCount(element as HTMLElement, majorMatch[0], url, pdf.numPages));
+					context.addChild(new pdfPageCount(element as HTMLElement, majorMatch[0], pdf.numPages));
 					break;
 				default:
 					break;
@@ -211,13 +211,15 @@ export class pdfThumbnail extends MarkdownRenderChild {
 
 export class pdfPageCount extends MarkdownRenderChild {
 	pageNum: number;
+	pdfOriginalString: string
 
-	constructor(containerEl: HTMLElement, pdfOriginalString: string, pdfUrl: string, pageNum: number) {
+	constructor(containerEl: HTMLElement, pdfOriginalString: string, pageNum: number) {
 		super(containerEl);
 		this.pageNum = pageNum;
+		this.pdfOriginalString = pdfOriginalString;
 	}
 
 	async onload() {
-		this.containerEl.innerText = this.containerEl.innerText.replace(majorPattern, this.pageNum.toString());
+		this.containerEl.innerText = this.containerEl.innerText.replace(this.pdfOriginalString, this.pageNum.toString());
 	}
 }
