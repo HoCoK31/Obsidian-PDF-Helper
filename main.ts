@@ -17,15 +17,15 @@ export default class PdfHelper extends Plugin {
 
 		this.registerMarkdownPostProcessor((element, context) => {
 			Array.from(element.querySelectorAll("p, td, th, span")).forEach(async element => {
-				this.processElement(element, context);
+				this.processElement(element, context, dataviewPromise);
 			});
-			//hack for dataview (idk, some versions before it works without it)
+			//hack for dataview (idk, some versions before works without it)
 			if (element.tagName == "SPAN")
-				this.processElement(element, context);
+				this.processElement(element, context, dataviewPromise);
 		});
 	}
 
-	async processElement(element: Element, context: MarkdownPostProcessorContext) {
+	async processElement(element: Element, context: MarkdownPostProcessorContext, dataviewPromise: Promise<unknown>) {
 		const text = element.textContent;
 		if (!text)
 			return;
@@ -40,7 +40,7 @@ export default class PdfHelper extends Plugin {
 					url = a.getAttribute("data-link-path") || url;
 			});
 			if (!url.match(/.pdf$/)) {
-				//await dataviewPromise;
+				await dataviewPromise;
 				url = getAPI(this.app).page(context.sourcePath)[url] || url;
 				const minorMatch = [...url.matchAll(minorPattern)][0];
 				if (minorMatch?.length == 3)
