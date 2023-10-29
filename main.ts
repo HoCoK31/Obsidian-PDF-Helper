@@ -1,7 +1,7 @@
 import { MarkdownPostProcessorContext, Plugin } from "obsidian";
 import { getAPI } from "obsidian-dataview";
 
-const majorPattern = /:(pdf-[^:]+):([^:]+):(?:([0-9]*):(?:([0-9]+):)?)?/g;
+const majorPattern = /:(pdf-[^:]+):([^:]+):(?:([0-9]*):(?:([0-9]+)(?:\|(right|left))?:)?)?/g;
 const minorPattern = /\[([^]]*[^[]*)\]\(([^)]*[^(]*)\)/g;
 
 const pdfMap = new Map<string, { file: any, occurrences: number }>;
@@ -74,7 +74,7 @@ export default class PdfHelper extends Plugin {
 
 					const page = await pdf.getPage(pageNumber);
 
-					context.addChild(new pdfThumbnail(element as HTMLElement, majorMatch[0], url, page, parseInt(majorMatch[4])));
+					context.addChild(new pdfThumbnail(element as HTMLElement, majorMatch[0], url, page, parseInt(majorMatch[4]), majorMatch[5]));
 					break;
 				case "pdf-page-count":
 					context.addChild(new pdfPageCount(element as HTMLElement, majorMatch[0], url, pdf.numPages));
@@ -91,15 +91,17 @@ import { MarkdownRenderChild } from "obsidian";
 export class pdfThumbnail extends MarkdownRenderChild {
 	page: any;
 	renderTask: any;
-	fixedWidth: number | undefined;
 	timeoutId: number | undefined;
+	fixedWidth: number | undefined;
+	floatType: string | undefined;
 	pdfOriginalString: string;
 	pdfUrl: string;
 
-	constructor(containerEl: HTMLElement, pdfOriginalString: string, pdfUrl: string, page: any, size?: number) {
+	constructor(containerEl: HTMLElement, pdfOriginalString: string, pdfUrl: string, page: any, size?: number, floatType?: string) {
 		super(containerEl);
 		this.page = page;
 		this.fixedWidth = size;
+		this.floatType = floatType;
 		this.pdfOriginalString = pdfOriginalString;
 		this.pdfUrl = pdfUrl;
 	}
@@ -113,7 +115,9 @@ export class pdfThumbnail extends MarkdownRenderChild {
 
 		let mainCanvas = document.createElement("canvas");
 		div.appendChild(mainCanvas);
-		//div.style.float = "right"; // if fixedWidth is defined
+		div.style.textAlign = "center";
+		if (this.floatType)
+			div.style.float = this.floatType; // if fixedWidth is defined
 
 		for (const [childIndex, child] of Array.from(this.containerEl.childNodes).entries()) {
 			if (child instanceof Text) {
