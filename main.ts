@@ -116,7 +116,7 @@ export class pdfThumbnail extends MarkdownRenderChild {
 		let mainCanvas = document.createElement("canvas");
 		div.appendChild(mainCanvas);
 		div.style.textAlign = "center";
-		if (this.fixedWidth)
+		if (this.fixedWidth && this.floatType)
 			div.style.maxWidth = this.fixedWidth + "px";
 		div.style.width = "100%";
 		if (this.floatType)
