@@ -116,6 +116,9 @@ export class pdfThumbnail extends MarkdownRenderChild {
 		let mainCanvas = document.createElement("canvas");
 		div.appendChild(mainCanvas);
 		div.style.textAlign = "center";
+		if (this.fixedWidth)
+			div.style.maxWidth = this.fixedWidth + "px";
+		div.style.width = "100%";
 		if (this.floatType)
 			div.style.float = this.floatType; // if fixedWidth is defined
 
@@ -154,13 +157,11 @@ export class pdfThumbnail extends MarkdownRenderChild {
 			}
 		}
 
-		resizeCanvas.call(this);
 		let resizeObserver = new ResizeObserver(_ => { resizeCanvas.call(this) });
-		if (!this.fixedWidth)
-			resizeObserver.observe(div);
+		resizeObserver.observe(div);
 
 		async function resizeCanvas() {
-			if (!div?.clientWidth && !this.fixedWidth) {
+			if (!div?.clientWidth) {
 				return;
 			}
 
@@ -168,9 +169,12 @@ export class pdfThumbnail extends MarkdownRenderChild {
 			const context = canvas.getContext("2d");
 			const baseViewportWidth = this.page.getViewport({ scale: 1 }).width;
 
+			let scale: number;
 			mainCanvas.style.width = "100%";
-
-			const scale = (this.fixedWidth || mainCanvas.clientWidth) / baseViewportWidth;
+			if (this.fixedWidth)
+				scale = (mainCanvas.clientWidth < this.fixedWidth ? mainCanvas.clientWidth : this.fixedWidth) / baseViewportWidth;
+			else
+				scale = mainCanvas.clientWidth / baseViewportWidth;
 			const viewport = this.page.getViewport({ scale: scale * window.devicePixelRatio || 1 });
 
 			mainCanvas.style.width = Math.floor(viewport.width) / (window.devicePixelRatio || 1) + "px";
