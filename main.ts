@@ -32,8 +32,10 @@ export default class PdfHelper extends Plugin {
 		[...text.matchAll(majorPattern)].forEach(async majorMatch => {
 			if (!majorMatch?.length)
 				return;
+			console.log(majorMatch);
 
-			let url = majorMatch[2];
+			let url: any;
+			url = majorMatch[2];
 
 			Array.from(element.getElementsByTagName("a")).forEach(a => {
 				if (a.textContent == majorMatch[2])
@@ -42,9 +44,13 @@ export default class PdfHelper extends Plugin {
 			if (!url.match(/.pdf$/)) {
 				await dataviewPromise;
 				url = getAPI(this.app).page(context.sourcePath)[url] || url;
-				const minorMatch = [...url.matchAll(minorPattern)][0];
-				if (minorMatch?.length == 3)
-					url = minorMatch[2].replaceAll("%20", " ");
+				url = url.path || url;
+				const matchCheck = url.matchAll(minorPattern);
+				if (matchCheck) {
+					const minorMatch = [...matchCheck][0];
+					if (minorMatch?.length == 3)
+						url = minorMatch[2].replaceAll("%20", " ");
+				}
 			}
 			if (!url.match(/.pdf$/))
 				url = url.concat(".pdf");
