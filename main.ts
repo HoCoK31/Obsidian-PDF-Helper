@@ -32,7 +32,6 @@ export default class PdfHelper extends Plugin {
 		[...text.matchAll(majorPattern)].forEach(async majorMatch => {
 			if (!majorMatch?.length)
 				return;
-			console.log(majorMatch);
 
 			let url: any;
 			url = majorMatch[2];
