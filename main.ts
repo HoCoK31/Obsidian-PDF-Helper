@@ -67,7 +67,6 @@ export default class PdfHelper extends Plugin {
 			// Hack to fix dataview views and elements without parents
 			if (!element.parentElement || element.parentElement.classList.contains("block-language-dataviewjs"))
 				return;
-			console.log(element.parentElement);
 
 			if (pdfMap.has(url)) {
 				pdf = await pdfMap.get(url)?.file;
