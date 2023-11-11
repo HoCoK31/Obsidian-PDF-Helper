@@ -22,7 +22,7 @@ export default class PdfHelper extends Plugin {
 			//hack for dataview (idk, some versions before works without it)
 			if (element.tagName == "SPAN")
 				this.processElement(element, context, dataviewPromise);
-		});
+		}, 10000); //sure that pdfHelper loads after other's
 	}
 
 	async processElement(element: Element, context: MarkdownPostProcessorContext, dataviewPromise: Promise<unknown>) {
