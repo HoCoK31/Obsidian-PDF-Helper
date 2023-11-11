@@ -63,6 +63,12 @@ export default class PdfHelper extends Plugin {
 			const arrayBuffer = await this.app.vault.adapter.readBinary(url);
 			const buffer = new Uint8Array(arrayBuffer);
 			let pdf: any;
+
+			// Hack to fix dataview views and elements without parents
+			if (!element.parentElement || element.parentElement.classList.contains("block-language-dataviewjs"))
+				return;
+			console.log(element.parentElement);
+
 			if (pdfMap.has(url)) {
 				pdf = await pdfMap.get(url)?.file;
 			}
@@ -70,6 +76,7 @@ export default class PdfHelper extends Plugin {
 				pdfMap.set(url, { file: pdfjs.getDocument(buffer).promise, occurrences: 0 });
 				pdf = await pdfMap.get(url)?.file;
 			}
+
 
 			switch (majorMatch[1]) {
 				case "pdf-thumbnail":
